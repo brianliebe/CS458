@@ -1,0 +1,8 @@
+Name:			Brian Liebe
+Email:			bliebe1@binghamton.edu
+Tested on Bingsuns?	Yes
+Other (part1):		Based on the wording of the assignment, this only needed to
+			run on Bingsuns, meaning both Client and Server on Bingsuns.
+			That is how I designed it, and it works that way. I have not
+			tested it where the client is not on Bingsuns but the Server
+			is. 
