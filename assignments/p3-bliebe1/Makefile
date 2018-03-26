@@ -5,8 +5,8 @@ all: gen-pass sslcli sslserv
 gen-pass: gen-pass.cpp sha1.cpp sha1.h
 	g++ gen-pass.cpp sha1.cpp -o gen-pass -Wall -Wextra
 
-sslserv: sslserv.cpp
-	g++ sslserv.cpp -o sslserv -L/usr/lib $(LINKS)
+sslserv: sslserv.cpp sha1.cpp sha1.h
+	g++ sslserv.cpp sha1.cpp -o sslserv -L/usr/lib $(LINKS)
 
 sslcli: sslcli.cpp
 	g++ sslcli.cpp -o sslcli -L/usr/lib $(LINKS)

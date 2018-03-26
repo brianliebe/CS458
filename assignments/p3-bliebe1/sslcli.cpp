@@ -111,14 +111,23 @@ int main(int count, char *strings[])
         ERR_print_errors_fp(stderr);
     else
     {   
-        char *msg; // = "Hello???";
-        cin >> msg;
-        printf("Connected with %s encryption\n", SSL_get_cipher(ssl));
+        const char *msg; // = "Hello???";
+        string user, pass;
+        cout << "Username: ";
+        cin >> user;
+        cout << "Password: ";
+        cin >> pass;
+        string combo = user + ";" + pass;
+
+        msg = combo.c_str(); 
+        // printf("Connected with %s encryption\n", SSL_get_cipher(ssl));
         ShowCerts(ssl);								/* get any certs */
         SSL_write(ssl, msg, strlen(msg));			/* encrypt & send message */
         bytes = SSL_read(ssl, buf, sizeof(buf));	/* get reply & decrypt */
         buf[bytes] = 0;
-        printf("Received: \"%s\"\n", buf);
+        if (string(buf) == "OK") cout << "The password is correct." << endl;
+        else cout << "The password is incorrect." << endl;
+        // printf("Received: \"%s\"\n", buf);
         SSL_free(ssl);								/* release connection state */
     }
     close(server);									/* close socket */

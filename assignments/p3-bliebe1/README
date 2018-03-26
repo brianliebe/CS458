@@ -1,0 +1,12 @@
+Name:		Brian Liebe
+Email:		bliebe1@binghamton.edu
+Bingsuns:	No, Bingsuns didn't have OpenSSL which was required
+		to get this to work. I ran everything on an Ubuntu machine,
+		and it works using the public IP of the laptop/PC and a random
+		port (I used 9943).
+How To:		1. make
+		2. ./sslserv <port>
+		3. ./sslcli <ip> <port>
+		4. ./gen-pass
+Notes:		When I tested this, I used my public IP address, but I also
+		tried with localhost (127.0.0.1) and this works as well. 

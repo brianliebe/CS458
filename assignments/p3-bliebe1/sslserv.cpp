@@ -7,6 +7,11 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <arpa/inet.h>
+#include <iostream>
+#include "sha1.h"
+#include <fstream>
+
+using namespace std;
 
 #define FAIL    -1
 
@@ -89,17 +94,18 @@ void ShowCerts(SSL* ssl)
     cert = SSL_get_peer_certificate(ssl);	/* Get certificates (if available) */
     if ( cert != NULL )
     {
-        printf("Server certificates:\n");
+        // printf("Server certificates:\n");
         line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-        printf("Subject: %s\n", line);
+        // printf("Subject: %s\n", line);
         free(line);
         line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-        printf("Issuer: %s\n", line);
+        // printf("Issuer: %s\n", line);
         free(line);
         X509_free(cert);
     }
-    else
-        printf("No certificates.\n");
+    else {
+        // printf("No certificates.\n");
+    }
 }
 
 /*---------------------------------------------------------------------*/
@@ -109,7 +115,8 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
 {   char buf[1024];
     char reply[1024];
     int sd, bytes;
-    const char* HTMLecho = "%s";
+    const char* HTMLecho; // "%s"
+    bool passwords_match = false;
 
     if ( SSL_accept(ssl) == FAIL )					/* do SSL-protocol accept */
         ERR_print_errors_fp(stderr);
@@ -120,9 +127,34 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
         if ( bytes > 0 )
         {
             buf[bytes] = 0;
-            printf("Client msg: \"%s\"\n", buf);
-            sprintf(reply, HTMLecho, buf);			/* construct reply */
-            SSL_write(ssl, reply, strlen(reply));	/* send reply */
+            // printf("Client sent: \"%s\"\n", buf);
+            string user = "";
+            string pass = "";
+            string hashed;
+            bool after = false;
+            for (int i = 0; i < bytes; i++) {
+                if (buf[i] == ';') after = true;
+                else if (!after) user += buf[i];
+                else pass += buf[i];
+            }
+            hashed = sha1(pass);
+            cout << "Username: " << user << endl;
+            cout << "Password: " << pass << endl;
+            cout << "Hashed Password: " << hashed << endl;
+
+            ifstream pass_file("password");
+            string f_user, f_pass, f_date;
+            while (pass_file >> f_user >> f_pass >> f_date) {
+                if (f_user == user) {
+                    if (f_pass == hashed) passwords_match = true;
+                    break;
+                }
+            }
+            if (passwords_match) HTMLecho = "OK";
+            else HTMLecho = "BAD";
+
+            sprintf(reply, HTMLecho, buf);
+            SSL_write(ssl, reply, strlen(reply));
         }
         else
             ERR_print_errors_fp(stderr);
