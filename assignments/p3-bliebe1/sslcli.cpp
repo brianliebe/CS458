@@ -113,7 +113,7 @@ int main(int count, char *strings[])
     {   
         const char *msg; // = "Hello???";
         string user, pass;
-        cout << "Username: ";
+        cout << "User ID: ";
         cin >> user;
         cout << "Password: ";
         cin >> pass;

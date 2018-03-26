@@ -138,7 +138,7 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
                 else pass += buf[i];
             }
             hashed = sha1(pass);
-            cout << "Username: " << user << endl;
+            cout << "User ID: " << user << endl;
             cout << "Password: " << pass << endl;
             cout << "Hashed Password: " << hashed << endl;
 
@@ -179,9 +179,9 @@ int main(int count, char *strings[])
     }
     portnum = strings[1];
     SSL_library_init();
-    ctx = InitServerCTX();								/* initialize SSL */
-    LoadCertificates(ctx, "mycert.pem", "mycert.pem");	/* load certs */
-    server = OpenListener(atoi(portnum));				/* create server socket */
+    ctx = InitServerCTX();
+    LoadCertificates(ctx, "cert.pem", "cert.pem");
+    server = OpenListener(atoi(portnum));
     while (1)
     {   struct sockaddr_in addr;
         socklen_t len;
