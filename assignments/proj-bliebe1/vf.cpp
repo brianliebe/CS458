@@ -8,7 +8,6 @@
 #include <openssl/err.h>
 #include <arpa/inet.h>
 #include <iostream>
-#include "sha1.h"
 #include "shared.h"
 #include <fstream>
 #include <time.h>
@@ -106,17 +105,14 @@ void ShowCerts(SSL* ssl)
     cert = SSL_get_peer_certificate(ssl);	/* Get certificates (if available) */
     if ( cert != NULL )
     {
-        // printf("Server certificates:\n");
         line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-        // printf("Subject: %s\n", line);
         free(line);
         line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-        // printf("Issuer: %s\n", line);
         free(line);
         X509_free(cert);
     }
     else {
-        // printf("No certificates.\n");
+        // ...
     }
 }
 
@@ -127,23 +123,22 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
 {   char buf[1024];
     char reply[1024];
     int sd, bytes;
-    const char* HTMLecho; // "%s"
-    bool passwords_match = false;
+    const char* server_response;
 
-    if ( SSL_accept(ssl) == FAIL )					/* do SSL-protocol accept */
+    if ( SSL_accept(ssl) == FAIL )
         ERR_print_errors_fp(stderr);
     else {
-        ShowCerts(ssl);								/* get any certificates */
-        bytes = SSL_read(ssl, buf, sizeof(buf));	/* get request */
-        if ( bytes > 0 )
+        ShowCerts(ssl);
+        // read name and vnumber from client
+        bytes = SSL_read(ssl, buf, sizeof(buf));
+        if (bytes > 0)
         {
             buf[bytes] = 0;
-            // printf("Client sent: \"%s\"\n", buf);
-            string first_half = "";
-            string second_half = "";
+            string first_half = ""; // contains name and vnumbers
+            string second_half = ""; // contains digital signature of user's name
 
+            // split the message at the ||
             bool after = false;
-
             for (int i = 0; i < bytes; i++) {
                 if (buf[i] == '|') { 
                     after = true;
@@ -153,71 +148,99 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
                 else second_half += buf[i];
             }
 
-            first_half = decrypt(private_key("server"), first_half);
-            string name = first_half.substr(0, first_half.find("||"));
+            // Get the name and vnumber from the first half of the message
+            first_half = decrypt(private_key("server"), first_half); // decrypt using private key of server
+            string name = first_half.substr(0, first_half.find("||")); // get the name
             first_half.erase(0, first_half.find("||") + 2);
-            string vnumber = first_half;
-            cout << " (Name: " << name << ", VNumber: " << vnumber << ")" << endl;
-            second_half = decrypt(public_key("server"), second_half);
+            string vnumber = first_half; // get the vnumber
 
-            HTMLecho = "0";
+            // Decrypt the digital signature using the public key of the user
+            second_half = decrypt(public_key(name), second_half);
+
+            // Print user/vnumber to standard output
+            cout << " (Name: " << name << ", VNumber: " << vnumber << ")" << endl;
+
+            // Check to see if the user & vnumber are valid
+            server_response = "0";
             if (second_half == name) {
                 ifstream voterinfo("voterinfo");
                 string name_from_file, vnumber_from_file;
                 while (voterinfo >> name_from_file >> vnumber_from_file) {
                     if (name_from_file == name && vnumber_from_file == vnumber) {
-                        HTMLecho = "1";
+                        server_response = "1";
                         break;
                     }
                 }
             }
-            sprintf(reply, HTMLecho, buf);
+
+            // Reply to the client
+            sprintf(reply, server_response, buf);
             SSL_write(ssl, reply, strlen(reply));
 
             // Now the user is valid, so return whatever request they want
-
+            if (server_response == "1")
             while (true) {
-                bytes = SSL_read(ssl, buf, sizeof(buf));	/* get request */
+                // Read the client's request 
+                bytes = SSL_read(ssl, buf, sizeof(buf));
+
                 if (bytes > 0) {
                     buf[bytes] = 0;
                     if (string(buf) == "1") {
-                        HTMLecho = "1";
+                        // The client wants to vote
+                        server_response = "1";
                         string vnumber_from_file, date;
                         ifstream history("history");
+
+                        // Check history to see if they've voted before
                         while (history >> vnumber_from_file >> date) {
                             if (vnumber == vnumber_from_file) {
-                                HTMLecho = "0";
+                                // If the have, return "0"
+                                server_response = "0";
                                 break;
                             }
                         }
                         history.close();
-                        sprintf(reply, HTMLecho, buf);
+
+                        // Reply to the client
+                        sprintf(reply, server_response, buf);
                         SSL_write(ssl, reply, strlen(reply));
 
-                        if (HTMLecho == "1" ) {
+                        // If they haven't voted, we need to receive their vote
+                        if (server_response == "1" ) {
+                            // Read the vote
                             bytes = SSL_read(ssl, buf, sizeof(buf));
+
                             if (bytes > 0) {
                                 buf[bytes] = 0;
+                                
+                                // Decrypt their vote using the private key of the server
                                 string vote = decrypt(private_key("server"), string(buf));
+
+                                // Read the results file and save the info (we will overwrite it)
                                 ifstream result_in("results");
                                 string candidate;
                                 int tim_votes, linda_votes;
                                 result_in >> candidate >> tim_votes;
                                 result_in >> candidate >> linda_votes;
+                                result_in.close();
 
+                                // Update the votes
                                 if (vote == "1") tim_votes++;
                                 else if (vote == "2") linda_votes++;
-                                result_in.close();
+
+                                // Rewrite the results file with the new information
                                 ofstream result_out("results");
                                 result_out << "Tim " << tim_votes << endl;
                                 result_out << "Linda " << linda_votes << endl;
                                 result_out.close();
 
+                                // Add a new entry to the history file
                                 ofstream history2;
-                                history2.open("history", ios_base::app);
+                                history2.open("history", ios_base::app); // append, not overwrite
                                 history2 << vnumber << " " << getCurrentTime() << endl;
                                 history2.close();
 
+                                // Check to see if everyone has voted
                                 ifstream voterinfo("voterinfo");
                                 string name, date, vn1, vn2;
                                 bool everyone_voted = true;
@@ -236,34 +259,43 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
                                         break;
                                     }
                                 }
+                                // If everyone has voted, print the winner and vote totals, otherwise, do nothing
                                 if (everyone_voted) {
                                     ifstream result("results");
                                     int t_votes, l_votes;
                                     result >> name >> t_votes;
                                     result >> name >> l_votes;
+                                    cout << "-------------" << endl;
                                     if (t_votes > l_votes) cout << "Tim Wins!" << endl;
                                     else cout << "Linda Wins!" << endl;
-                                    cout << "\tTim " << t_votes << endl;
-                                    cout << "\tLinda " << l_votes << endl;
+                                    cout << " Tim " << t_votes << endl;
+                                    cout << " Linda " << l_votes << endl;
+                                    cout << "-------------" << endl;
                                 }
                             }
                         }
                     }
                     else if (string(buf) == "2") {
+                        // Client wants to see their voting history
                         ifstream history("history");
                         string vn, date, line;
-                        HTMLecho = "0";
+                        server_response = "You have not voted yet."; // the default response
                         while (history >> vn >> date) {
                             if (vnumber == vn) {
+                                // If they have voted, send them the line in "history"
                                 line = vn + " " + date;
-                                HTMLecho = line.c_str();
+                                server_response = line.c_str();
                                 break;
                             }
                         }
-                        sprintf(reply, HTMLecho, buf);
+
+                        // Send the line to the client
+                        sprintf(reply, server_response, buf);
                         SSL_write(ssl, reply, strlen(reply));
                     }
                     else if (string(buf) == "3") {
+                        // Client wants to see if there is a winner
+
                         ifstream voterinfo("voterinfo");
                         string name, date, vn1, vn2, candidate;
                         bool everyone_voted = true;
@@ -283,34 +315,39 @@ void Servlet(SSL* ssl)	/* Serve the connection -- threadable */
                             }
                         }
                         voterinfo.close();
+
+                        // Get the results from the file, and send them to the client as <tim votes>;<linda votes>
                         ifstream results("results");
                         if (everyone_voted) {
                             string t_votes, l_votes;
                             results >> candidate >> t_votes;
                             results >> candidate >> l_votes;
                             string line = t_votes + ";" + l_votes;
-                            HTMLecho = line.c_str();
+                            server_response = line.c_str();
                         }
                         else {
-                            HTMLecho = "0";
+                            // If everyone didn't vote, we just respond with "0"
+                            server_response = "0";
                         }
                         results.close();
-                        sprintf(reply, HTMLecho, buf);
+
+                        // Send message to client
+                        sprintf(reply, server_response, buf);
                         SSL_write(ssl, reply, strlen(reply));
                     }
                     else if (string(buf) == "4") {
+                        // Client wants to disconnect, so disconnect
                         break;
                     }
                 }
             }
 
         }
-        else
-            ERR_print_errors_fp(stderr);
+        else ERR_print_errors_fp(stderr);
     }
-    sd = SSL_get_fd(ssl);							/* get socket connection */
-    SSL_free(ssl);									/* release SSL state */
-    close(sd);										/* close connection */
+    sd = SSL_get_fd(ssl);
+    SSL_free(ssl);
+    close(sd);
     cout << "Closing connection" << endl;
 }
 
@@ -338,12 +375,14 @@ int main(int count, char *strings[])
         len = sizeof(addr);
         SSL *ssl;
 
-        int client = accept(server, (struct sockaddr *)&addr, &len);		/* accept connection as usual */
+        int client = accept(server, (struct sockaddr *)&addr, &len);
         cout << "Connection: " << inet_ntoa(addr.sin_addr) << ":" << ntohs(addr.sin_port);
-        ssl = SSL_new(ctx);         					/* get new SSL state with context */
-        SSL_set_fd(ssl, client);						/* set connection socket to SSL state */
-        Servlet(ssl);									/* service connection */
+        ssl = SSL_new(ctx);
+        SSL_set_fd(ssl, client);
+
+        // Go to Servlet function, where the majority of the "stuff" is
+        Servlet(ssl);
     }
-    close(server);										/* close server socket */
-    SSL_CTX_free(ctx);									/* release context */
+    close(server);
+    SSL_CTX_free(ctx);
 }

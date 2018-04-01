@@ -10,3 +10,4 @@ How To:		1. make
 		4. ./gen-pass
 Notes:		When I tested this, I used my public IP address, but I also
 		tried with localhost (127.0.0.1) and this works as well. 
+

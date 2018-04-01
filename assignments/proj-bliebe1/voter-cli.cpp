@@ -19,8 +19,7 @@ using namespace std;
 
 #define FAIL    -1
 
-void print_header(string name) {
-    cout << "Welcome, " << name << endl;
+void print_header() {
     cout << "\tMain Menu" << endl;
     cout << "Please enter a number (1-4)" << endl;
     cout << "1. Vote" << endl;
@@ -103,7 +102,8 @@ void ShowCerts(SSL* ssl)
 /*--- main - create SSL context and connect                         ---*/
 /*---------------------------------------------------------------------*/
 int main(int count, char *strings[])
-{   SSL_CTX *ctx;
+{   
+    SSL_CTX *ctx;
     int server;
     SSL *ssl;
     char buf[1024];
@@ -127,32 +127,48 @@ int main(int count, char *strings[])
         ERR_print_errors_fp(stderr);
     else
     {   
-        const char *msg; // = "Hello???";
+        const char *msg;
         bool validity = true;
+
+        // Get the user's name and voter registration number
         string name, vnumber;
         cout << "Your Name: ";
         cin >> name;
         cout << "Voter Registration Number: ";
         cin >> vnumber;
-        string encrypted_message = encrypt(public_key("server"), name + "||" + vnumber) + "||" + encrypt(private_key(name), name);
 
+        // Build the message we'll send to the VF
+        string encrypted_message = encrypt(public_key("server"), name + "||" + vnumber) + "||" + encrypt(private_key(name), name);
         msg = encrypted_message.c_str(); 
+
+        // Send the message to the VF
         ShowCerts(ssl);
         SSL_write(ssl, msg, strlen(msg));
+
+        // Get the response from the server
         bytes = SSL_read(ssl, buf, sizeof(buf));
         buf[bytes] = 0;
 
         if (string(buf) == "0") {
+            // VF rejects the user
             cout << "Invalid name or registration number." << endl;
             validity = false;
         }
+        else {
+            system("clear");
+            cout << "Welcome, " << name << "!" << endl;
+        }
         while (validity) {
-            print_header(name);
+            print_header(); // print menu
+
+            // Get the command from the user
             string response, candidate;
             cout << "> ";
             cin >> response;
+
+            system("clear");
             if (response == "1") {
-                // vote
+                // Client wants to vote, so send it to the server to check for double-voting
                 msg = response.c_str();
                 ShowCerts(ssl);
                 SSL_write(ssl, msg, strlen(msg));
@@ -161,7 +177,6 @@ int main(int count, char *strings[])
 
                 if (string(buf) == "0") {
                     cout << "You have already voted!" << endl;
-                    sleep(1);
                 }
                 else {
                     cout << "Please enter a number (1-2)" << endl;
@@ -169,23 +184,27 @@ int main(int count, char *strings[])
                     cout << "2. Linda" << endl;
                     cout << "> ";
                     cin >> candidate;
+
+                    // Send the encrypted message to the server
                     candidate = encrypt(public_key("server"), candidate);
                     msg = candidate.c_str();
                     SSL_write(ssl, msg, strlen(msg));
+                    system("clear");
                 }
             }
             else if (response == "2") {
-                // vote history
+                // Client wants its voting history, so send it to the server and get its response
                 msg = response.c_str();
                 ShowCerts(ssl);
                 SSL_write(ssl, msg, strlen(msg));
                 bytes = SSL_read(ssl, buf, sizeof(buf));
                 buf[bytes] = 0;
 
+                // The response will either be the history entry or "you have not voted", so print it
                 cout << buf << endl;
             }
             else if (response == "3") {
-                // election result
+                // Client wants to see the result of the election
                 msg = response.c_str();
                 ShowCerts(ssl);
                 SSL_write(ssl, msg, strlen(msg));
@@ -193,9 +212,11 @@ int main(int count, char *strings[])
                 buf[bytes] = 0;
 
                 if (string(buf) == "0") {
+                    // Not everyone has voted yet
                     cout << "The result is not available." << endl;
                 }
                 else {
+                    // Reponse in form <tim votes>;<linda votes>, so parse it
                     string tim_votes, linda_votes;
                     int t_votes, l_votes;
                     bool switch_cand = false;
@@ -206,21 +227,24 @@ int main(int count, char *strings[])
                     }
                     t_votes = atoi(tim_votes.c_str());
                     l_votes = atoi(linda_votes.c_str());
-                    if (t_votes > l_votes) cout << "Tim Win" << endl;
-                    else cout << "Linda Win" << endl;
-                    cout << "Tim - " << t_votes << endl;
-                    cout << "Linda - " << l_votes << endl;
-                }
 
+                    // Print out the winner
+                    if (t_votes > l_votes) cout << "Tim Wins!" << endl;
+                    else cout << "Linda Wins!" << endl;
+                    cout << " Tim " << t_votes << endl;
+                    cout << " Linda " << l_votes << endl;
+                }
             }
             else if (response == "4") {
-                // quit
+                // Quit, but tell the server first
                 msg = response.c_str();
                 SSL_write(ssl, msg, strlen(msg));
                 break;
             }
+            else {
+                cout << "Please select a valid option." << endl;
+            }
         }
-
         SSL_free(ssl);
     }
     close(server);
