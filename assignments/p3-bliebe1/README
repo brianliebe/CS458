@@ -1,0 +1,24 @@
+Name:		Brian Liebe
+
+Email:		bliebe1@binghamton.edu
+
+Bingsuns:	No, Bingsuns didn't have an updated OpenSSL which was required
+		to get this to work (sudo apt install libssl-dev). I put more info
+		about this in 'Notes'. I can come demo this if you can't get it to
+		work, it works on my laptop 100%.
+
+How To:		1. make
+		2. ./sslserv <port>
+		3. ./sslcli <ip> <port>
+		4. ./gen-pass
+
+Notes:		Bingsuns was missing libssl-dev which I needed to get the SSL server
+		to run correctly. I got this to work on my labtop and PC (Ubuntu) by
+		using localhost (127.0.0.1). I also got it to work on my laptop while
+		on campus Wifi using my public IP address, but couldn't get it to work
+		at my apartment using my public IP (I think this is because of my apartment's
+		weird Wifi). I emailed the professor and she said this was fine, and 
+		that I can demo it if you could not get it to work, but it should always
+		work using 127.0.0.1 on a personal machine.
+		Also, I DID try using the "setenv" stuff that the professor suggested to
+		get this working and it did not change anything, unfortunately.
