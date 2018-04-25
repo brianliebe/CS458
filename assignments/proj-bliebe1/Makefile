@@ -1,4 +1,4 @@
-LINKS = -lssl -lcrypto -Wno-write-strings -lresolv -lnsl
+LINKS = -lssl -lcrypto -Wno-write-strings -lresolv -lnsl -std=c++11
 
 all: voter-cli vf
 
@@ -9,4 +9,4 @@ voter-cli: voter-cli.cpp shared.h
 	g++ voter-cli.cpp -o voter-cli -L/usr/lib $(LINKS)
 
 clean:
-	rm -f vf voter-cli
+	rm -f vf voter-cli history results

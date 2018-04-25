@@ -10,10 +10,17 @@ How To:		1. make
 		2. ./vf <port number>
 		3. ./voter-cli <IP address> <port>
 
-Encryption:	See "shared.h" -> 'string encrypt(Key, string)'
+Encryption:	See "shared.h" -> 'string encrypt(Key, string)' and also 'struct cryptor'
 
-Decryption:	See "shared.h" -> 'string decrypt(Key, string)'
+Decryption:	See "shared.h" -> 'string decrypt(Key, string)' and also 'struct cryptor'
 
 Notes:		Due to SSL restrictions, this is not working on Bingsuns. It will
 		work using 127.0.0.1 on a linux machine, and it will also work if 
-		you're on BU wifi and use your public IP address.
+		you're on BU wifi and use your public IP address (from testing).
+		The public/private keys are saved within 'shared.h' in the public_key
+		and private_key functions.
+
+		NOTE: I did this with SSL because the code worked well from project
+		3 and I didn't want to re-write it. However, I DID still do the
+		encryption using RSA, so it's kind of "double" encrypted I suppose.
+		I asked the professor and she said this is fine.
