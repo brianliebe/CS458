@@ -62,16 +62,16 @@ SSL_CTX* InitServerCTX(void)
 /*---------------------------------------------------------------------*/
 /*--- LoadCertificates - load from files.                           ---*/
 /*---------------------------------------------------------------------*/
-void LoadCertificates(SSL_CTX* ctx, char* CertFile, char* KeyFile)
+void LoadCertificates(SSL_CTX* ctx, string CertFile, string KeyFile)
 {
 	/* set the local certificate from CertFile */
-    if ( SSL_CTX_use_certificate_file(ctx, CertFile, SSL_FILETYPE_PEM) <= 0 )
+    if ( SSL_CTX_use_certificate_file(ctx, CertFile.c_str(), SSL_FILETYPE_PEM) <= 0 )
     {
         ERR_print_errors_fp(stderr);
         abort();
     }
     /* set the private key from KeyFile (may be the same as CertFile) */
-    if ( SSL_CTX_use_PrivateKey_file(ctx, KeyFile, SSL_FILETYPE_PEM) <= 0 )
+    if ( SSL_CTX_use_PrivateKey_file(ctx, KeyFile.c_str(), SSL_FILETYPE_PEM) <= 0 )
     {
         ERR_print_errors_fp(stderr);
         abort();
@@ -184,16 +184,15 @@ int main(int count, char *strings[])
     server = OpenListener(atoi(portnum));
     while (1)
     {   struct sockaddr_in addr;
-        socklen_t len;
-        len = sizeof(addr);
+        socklen_t len = sizeof(addr);
         SSL *ssl;
 
-        int client = accept(server, (struct sockaddr *)&addr, &len);		/* accept connection as usual */
+        int client = accept(server, (struct sockaddr *)&addr, &len);
         printf("Connection: %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-        ssl = SSL_new(ctx);         					/* get new SSL state with context */
-        SSL_set_fd(ssl, client);						/* set connection socket to SSL state */
-        Servlet(ssl);									/* service connection */
+        ssl = SSL_new(ctx);
+        SSL_set_fd(ssl, client);
+        Servlet(ssl);
     }
-    close(server);										/* close server socket */
-    SSL_CTX_free(ctx);									/* release context */
+    close(server);
+    SSL_CTX_free(ctx);
 }
