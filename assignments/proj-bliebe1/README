@@ -1,0 +1,19 @@
+Name:		Brian Liebe
+
+Email:		bliebe1@binghamton.edu
+
+Language:	C++
+
+Platform:	Linux
+
+How To:		1. make
+		2. ./vf <port number>
+		3. ./voter-cli <IP address> <port>
+
+Encryption:	See "shared.h" -> 'string encrypt(Key, string)'
+
+Decryption:	See "shared.h" -> 'string decrypt(Key, string)'
+
+Notes:		Due to SSL restrictions, this is not working on Bingsuns. It will
+		work using 127.0.0.1 on a linux machine, and it will also work if 
+		you're on BU wifi and use your public IP address.
